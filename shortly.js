@@ -43,6 +43,7 @@ function(req, res) {
   });
 });
 
+
 app.get('/links', 
 function(req, res) {
   restrict(req, res, function(){

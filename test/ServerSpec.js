@@ -63,7 +63,7 @@ describe('', function() {
 
     var requestWithSession = request.defaults({jar: true});
 
-    xbeforeEach(function(done) {
+    beforeEach(function(done) {
       // create a user that we can then log-in with
       new User({
         'username': 'Phillip',
@@ -178,6 +178,7 @@ describe('', function() {
 
         requestWithSession(options, function(error, res, body) {
           var code = res.body.code;
+          console.log();
           expect(code).to.equal(link.get('code'));
           done();
         });
@@ -238,7 +239,7 @@ describe('', function() {
 
   }); // 'Priviledged Access'
 
-  xdescribe('Account Creation:', function() {
+  describe('Account Creation:', function() {
 
     it('Signup creates a user record', function(done) {
       var options = {

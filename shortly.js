@@ -2,7 +2,8 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
-
+var cookieParser = require('cookie-parser');
+var session = require('express-session');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -21,22 +22,32 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
+app.use(cookieParser("secretkey"));
+app.use(session());
+ 
 
 
 app.get('/', 
 function(req, res) {
-  res.render('index');
+  restrict(req, res, function(){
+    res.render('index');
+  });
+  
 });
 
 app.get('/create', 
 function(req, res) {
-  res.render('index');
+    restrict(req, res, function(){
+    res.render('index');
+  });
 });
 
 app.get('/links', 
 function(req, res) {
-  Links.reset().fetch().then(function(links) {
+  restrict(req, res, function(){
+    Links.reset().fetch().then(function(links) {
     res.send(200, links.models);
+  });
   });
 });
 
@@ -75,6 +86,71 @@ function(req, res) {
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
+//write page here refer to express resource
+ 
+function restrict(req, res, next) {
+  if (req.session.user) {
+    next();
+  } else {
+    req.session.error = 'Access denied!';
+    res.redirect('/login');
+  }
+}
+ 
+app.get('/', function(request, response) {
+   response.send('This is the homepage');
+});
+ 
+app.get('/login', function(request, response) {
+   response.render('login');
+});
+
+app.get('/signup', function(req, res) {
+    res.render('signup');
+});
+
+app.post('/signup', function(req, res){
+  var username = req.body.username;
+  var password = req.body.password;
+
+  new User({ 
+    username: username,
+    password: password
+  }).fetch().then(function(found) {
+    if (found) {
+      res.send(409);
+    }})
+      .then(function(newUser) {
+        res.send(200, newUser);
+      });
+    });
+
+ 
+app.post('/login', function(request, response) {
+ 
+    var username = request.body.username;
+    var password = request.body.password;
+ 
+    if(username == 'Phillip' && password == 'Phillip'){
+        request.session.regenerate(function(){
+        request.session.user = username;
+        response.redirect('/');
+        });
+    }
+    else {
+       response.redirect('login');
+    }    
+});
+ 
+app.get('/logout', function(request, response){
+    request.session.destroy(function(){
+        response.redirect('/login');
+    });
+});
+ 
+app.get('/restricted', restrict, function(request, response){
+  response.send('This is the restricted area! Hello ' + request.session.user + '! click <a href="/logout">here to logout</a>');
+});
 
 
 

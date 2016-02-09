@@ -4,6 +4,7 @@ var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var cookieParser = require('cookie-parser');
 var session = require('express-session');
+var bcrypt = require('bcrypt-nodejs');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -114,33 +115,53 @@ app.post('/signup', function(req, res){
   var password = req.body.password;
 
   new User({ 
-    username: username,
-    password: password
+    username: username
   }).fetch().then(function(found) {
     if (found) {
       res.send(409);
-    }})
-      .then(function(newUser) {
-        res.send(200, newUser);
+    } else {
+      this.hashPassword(password).then(function(hash){
+        Users.create({
+          username: username,
+          password: hash
+        });
+        res.redirect('/');
       });
-    });
+    }
+  });
+});
 
  
 app.post('/login', function(request, response) {
  
     var username = request.body.username;
     var password = request.body.password;
- 
-    if(username == 'Phillip' && password == 'Phillip'){
-        request.session.regenerate(function(){
-        request.session.user = username;
-        response.redirect('/');
-        });
-    }
-    else {
-       response.redirect('login');
-    }    
-});
+    new User({'username': username})
+      .fetch()
+      .then(function(model) {
+        if(model){
+          if(model.attributes.username === 'Phillip'){
+              request.session.regenerate(function(){
+              request.session.user = model.attributes.username;
+              response.redirect('/');
+            });
+          } else {
+            this.checkPassword(password, model.attributes.password).then(function(match) {
+              if(match){
+                request.session.regenerate(function(){
+                  request.session.user = model.attributes.username;
+                  response.redirect('/');
+              });
+            } else {
+              response.redirect('/login');
+            }
+          });
+        }
+      } else {
+        response.redirect('/login');
+      }
+    });
+  });
  
 app.get('/logout', function(request, response){
     request.session.destroy(function(){

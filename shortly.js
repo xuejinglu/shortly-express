@@ -4,7 +4,8 @@ var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var cookieParser = require('cookie-parser');
 var session = require('express-session');
-var bcrypt = require('bcrypt-nodejs');
+var passport = require('passport');
+var GitHubStrategy = require('passport-github').Strategy;
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -24,8 +25,29 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 app.use(cookieParser("secretkey"));
-app.use(session());
- 
+app.use(session({secret: "secret"}));
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.use(new GitHubStrategy({
+  clientID: 'bf917a74788c0b99b965',
+  clientSecret: '13743e5677aa381c33fd3a18182a0a51feeca51c',
+  callbackURL: "http://127.0.0.1:4568/auth/github/callback"
+},
+function(accessToken, refreshToken, profile, cb) {
+  process.nextTick(function () {
+    return cb(null, profile);
+  });
+  })
+);
+
+passport.serializeUser(function(user, done){
+  done(null, user);
+});
+
+passport.deserializeUser(function(user, done){
+  done(null, user);
+});
 
 
 app.get('/', 
@@ -49,7 +71,7 @@ function(req, res) {
   restrict(req, res, function(){
     Links.reset().fetch().then(function(links) {
     res.send(200, links.models);
-  });
+    });
   });
 });
 
@@ -89,21 +111,25 @@ function(req, res) {
 // Write your authentication routes here
 /************************************************************/
 //write page here refer to express resource
- 
+app.get('/auth/github',
+  passport.authenticate('github'));
+
+app.get('/auth/github/callback', 
+  passport.authenticate('github', { failureRedirect: '/auth/github' }),
+  function(req, res) {
+    res.redirect('/');
+  }
+  );
+
 function restrict(req, res, next) {
-  if (req.session.user) {
+  if (req.user || req.session.user) {
     next();
   } else {
-    req.session.error = 'Access denied!';
     res.redirect('/login');
   }
 }
- 
-app.get('/', function(request, response) {
-   response.send('This is the homepage');
-});
- 
-app.get('/login', function(request, response) {
+
+ app.get('/login', function(request, response) {
    response.render('login');
 });
 
@@ -170,9 +196,9 @@ app.get('/logout', function(request, response){
     });
 });
  
-app.get('/restricted', restrict, function(request, response){
-  response.send('This is the restricted area! Hello ' + request.session.user + '! click <a href="/logout">here to logout</a>');
-});
+// app.get('/restricted', restrict, function(request, response){
+//   response.send('This is the restricted area! Hello ' + request.session.user + '! click <a href="/logout">here to logout</a>');
+// });
 
 
 
